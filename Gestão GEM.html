@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão de Materiais e Reposição</title>
+  <!-- Tailwind CSS para o visual moderno -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- API da Biblioteca SheetJS para manipulação e geração de Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 p-4 md:p-8">
+
+  <div class="max-w-6xl mx-auto space-y-6">
+    
+    <!-- Cabeçalho Principal -->
+    <header class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">Controle de Uso e Reposição de Materiais</h1>
+        <p class="text-sm text-slate-500 mt-1">Registre as movimentações com local individualizado e gere relatórios com somatórios consolidados.</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="exportarParaExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Baixar Planilha com Totais (.xlsx)
+        </button>
+      </div>
+    </header>
+
+    <!-- Formulário de Registro -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+      <h2 class="text-lg font-semibold text-slate-800 mb-4">Novo Lançamento</h2>
+      <form id="formRegistro" onsubmit="adicionarRegistro(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- Local específico do lançamento -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Local / Ambiente</label>
+          <input type="text" id="campoLocal" placeholder="Ex: Copa, Banheiro 1, Sala TI" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Qual o item -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Qual o Item</label>
+          <input type="text" id="campoItem" placeholder="Ex: Papel toalha, Álcool 70%" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Quantidade -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Quantidade</label>
+          <input type="number" step="any" min="0.01" id="campoQtd" placeholder="Ex: 2" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Tipo / Unidade de Medida -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tipo (rolo, pacote, unidade...)</label>
+          <input type="text" id="campoTipo" placeholder="Ex: rolo, pacote, fardo, caixa" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Quem repôs -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Quem Repôs</label>
+          <input type="text" id="campoResponsavel" placeholder="Nome do colaborador" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Data da Utilização -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Data da Utilização</label>
+          <input type="date" id="campoData" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Hora -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Hora</label>
+          <input type="time" id="campoHora" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <div class="sm:col-span-2 flex items-end">
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2.5 rounded-lg shadow-sm transition">
+            + Adicionar Lançamento
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Seção de Somatório por Item (Totais) -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+      <h2 class="text-lg font-semibold text-slate-800 mb-3 flex items-center justify-between">
+        <span>Resumo e Somatório por Item</span>
+        <span class="text-xs font-normal text-slate-500">Calculado automaticamente</span>
+      </h2>
+      <div id="painelTotais" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Preenchido via JavaScript -->
+      </div>
+    </div>
+
+    <!-- Tabela de Movimentações -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 overflow-hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold text-slate-800">Histórico de Lançamentos</h2>
+        <button onclick="limparTudo()" class="text-xs text-red-500 hover:underline">Limpar todos os registros</button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">
+              <th class="p-3">Local</th>
+              <th class="p-3">Item</th>
+              <th class="p-3">Quantidade</th>
+              <th class="p-3">Tipo</th>
+              <th class="p-3">Responsável</th>
+              <th class="p-3">Data</th>
+              <th class="p-3">Hora</th>
+              <th class="p-3 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaCorpo" class="divide-y divide-slate-100">
+            <!-- Linhas inseridas dinamicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Recupera dados salvos no navegador ou inicia vazio
+    let registros = JSON.parse(localStorage.getItem('registros_estoque')) || [];
+
+    // Preenche a data e hora padrão com o momento atual
+    function atualizarDataHoraPadrao() {
+      const agora = new Date();
+      document.getElementById('campoData').value = agora.toISOString().split('T')[0];
+      document.getElementById('campoHora').value = agora.toTimeString().slice(0, 5);
+    }
+
+    // Salva no armazenamento local do navegador
+    function persistir() {
+      localStorage.setItem('registros_estoque', JSON.stringify(registros));
+      renderizarTudo();
+    }
+
+    // Adiciona um novo registro
+    function adicionarRegistro(e) {
+      e.preventDefault();
+
+      const novo = {
+        id: Date.now(),
+        local: document.getElementById('campoLocal').value.trim(),
+        item: document.getElementById('campoItem').value.trim(),
+        quantidade: parseFloat(document.getElementById('campoQtd').value),
+        tipo: document.getElementById('campoTipo').value.trim(),
+        responsavel: document.getElementById('campoResponsavel').value.trim(),
+        data: document.getElementById('campoData').value,
+        hora: document.getElementById('campoHora').value
+      };
+
+      registros.unshift(novo);
+      persistir();
+
+      // Limpa apenas os dados do item lançado (mantém o local e o responsável para agilizar novos lançamentos)
+      document.getElementById('campoItem').value = '';
+      document.getElementById('campoQtd').value = '';
+      document.getElementById('campoItem').focus();
+    }
+
+    // Remove um registro específico
+    function removerRegistro(id) {
+      registros = registros.filter(r => r.id !== id);
+      persistir();
+    }
+
+    // Limpa todos os dados salvos
+    function limparTudo() {
+      if (confirm('Tem certeza de que deseja apagar todos os lançamentos salvos?')) {
+        registros = [];
+        persistir();
+      }
+    }
+
+    // Calcula os totais agrupados por item e tipo
+    function calcularTotais() {
+      const totais = {};
+      registros.forEach(r => {
+        // Chave combinando o nome do item com o tipo (ex: "Papel toalha (rolo)")
+        const chave = `${r.item.toLowerCase()}###${r.tipo.toLowerCase()}`;
+        if (!totais[chave]) {
+          totais[chave] = {
+            nomeOriginal: r.item,
+            tipoOriginal: r.tipo,
+            total: 0
+          };
+        }
+        totais[chave].total += r.quantidade;
+      });
+      return Object.values(totais);
+    }
+
+    // Atualiza a interface gráfica
+    function renderizarTudo() {
+      const tbody = document.getElementById('tabelaCorpo');
+      tbody.innerHTML = '';
+
+      if (registros.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Nenhum lançamento adicionado ainda.</td></tr>`;
+      } else {
+        registros.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 transition';
+          tr.innerHTML = `
+            <td class="p-3 font-medium text-slate-800">${r.local}</td>
+            <td class="p-3 font-semibold text-blue-700">${r.item}</td>
+            <td class="p-3 font-bold">${r.quantidade}</td>
+            <td class="p-3 text-slate-600">${r.tipo}</td>
+            <td class="p-3 text-slate-600">${r.responsavel}</td>
+            <td class="p-3 text-slate-500">${r.data}</td>
+            <td class="p-3 text-slate-500">${r.hora}</td>
+            <td class="p-3 text-center">
+              <button onclick="removerRegistro(${r.id})" class="text-red-500 hover:text-red-700 text-xs font-semibold p-1">Excluir</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Renderiza os cartões de somatórios
+      const painel = document.getElementById('painelTotais');
+      painel.innerHTML = '';
+      const listaTotais = calcularTotais();
+
+      if (listaTotais.length === 0) {
+        painel.innerHTML = `<div class="col-span-full text-sm text-slate-400">Nenhum item lançado para somar.</div>`;
+      } else {
+        listaTotais.forEach(t => {
+          const card = document.createElement('div');
+          card.className = 'bg-slate-50 border border-slate-200 rounded-lg p-3';
+          card.innerHTML = `
+            <div class="text-xs text-slate-500 capitalize">${t.tipoOriginal}</div>
+            <div class="font-bold text-slate-800 truncate">${t.nomeOriginal}</div>
+            <div class="text-xl font-extrabold text-blue-600 mt-1">${t.total} <span class="text-xs font-normal text-slate-500">${t.tipoOriginal}</span></div>
+          `;
+          painel.appendChild(card);
+        });
+      }
+    }
+
+    // Exporta a planilha utilizando a API da biblioteca SheetJS
+    function exportarParaExcel() {
+      if (registros.length === 0) {
+        alert('Adicione pelo menos um lançamento antes de exportar a planilha.');
+        return;
+      }
+
+      // 1. Dados detalhados (Aba 1)
+      const cabecalhoDetalhado = [
+        'Local / Ambiente',
+        'Data da ut',
+        'Hora',
+        'Quem repôs',
+        'quantidade',
+        'qual o iten',
+        'que tipo, rolo, pacote, unidade'
+      ];
+
+      const linhasDetalhadas = registros.map(r => [
+        r.local,
+        r.data,
+        r.hora,
+        r.responsavel,
+        r.quantidade,
+        r.item,
+        r.tipo
+      ]);
+
+      const matrizAba1 = [cabecalhoDetalhado, ...linhasDetalhadas];
+      const wsDetalhes = XLSX.utils.aoa_to_sheet(matrizAba1);
+
+      // 2. Dados do somatório agrupado (Aba 2)
+      const cabecalhoTotais = ['Item', 'Tipo / Unidade', 'Quantidade Total Consumida'];
+      const listaTotais = calcularTotais();
+      const linhasTotais = listaTotais.map(t => [
+        t.nomeOriginal,
+        t.tipoOriginal,
+        t.total
+      ]);
+
+      const matrizAba2 = [cabecalhoTotais, ...linhasTotais];
+      const wsTotais = XLSX.utils.aoa_to_sheet(matrizAba2);
+
+      // Criação do arquivo (Workbook) com as duas abas
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsDetalhes, 'Lancamentos_Detalhados');
+      XLSX.utils.book_append_sheet(wb, wsTotais, 'Resumo_Totais');
+
+      // Download imediato via API do navegador
+      XLSX.writeFile(wb, `relatorio_reposicao_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    // Inicialização ao carregar a página
+    window.onload = function() {
+      atualizarDataHoraPadrao();
+      renderizarTudo();
+    };
+  </script>
+</body>
+</html>
