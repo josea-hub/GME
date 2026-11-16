@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGMS - Gestão Conectada na Nuvem</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Biblioteca Oficial do Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Biblioteca Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+
+  <!-- TELA DE LOGIN -->
+  <div id="telaLogin" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border border-slate-200">
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">SGMS Cloud</h1>
+        <p class="text-sm text-slate-500 mt-1">Acesse o sistema de materiais e serviços</p>
+      </div>
+      <form onsubmit="fazerLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
+          <input type="email" id="loginEmail" required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+          <input type="password" id="loginSenha" required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <button type="submit" id="btnEntrar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">
+          Entrar
+        </button>
+      </form>
+      <div class="mt-6 text-center">
+        <button onclick="alternarTelaAuth(true)" class="text-blue-600 hover:underline font-medium text-sm">Criar conta / Solicitar acesso</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TELA DE CADASTRO (COM EMPRESA -> ESTABELECIMENTO -> SETOR) -->
+  <div id="telaCadastro" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border border-slate-200">
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Solicitar Acesso</h1>
+        <p class="text-sm text-slate-500 mt-1">Vincule seu cadastro à sua unidade e setor</p>
+      </div>
+      <form onsubmit="fazerCadastro(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nome Completo</label>
+          <input type="text" id="cadNome" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">E-mail</label>
+          <input type="email" id="cadEmail" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Senha (mínimo 6 caracteres)</label>
+          <input type="password" id="cadSenha" required minlength="6" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Empresa</label>
+          <select id="cadEmpresa" onchange="filtrarEstabelecimentos()" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Estabelecimento / Unidade</label>
+          <select id="cadEstabelecimento" onchange="filtrarSetores()" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Setor</label>
+          <select id="cadSetor" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white"></select>
+        </div>
+        <button type="submit" id="btnCadastrar" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition mt-4">
+          Enviar Solicitação
+        </button>
+      </form>
+      <div class="mt-4 text-center">
+        <button onclick="alternarTelaAuth(false)" class="text-slate-500 hover:underline text-sm">Voltar para o Login</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAINEL PRINCIPAL -->
+  <div id="telaApp" class="hidden max-w-6xl mx-auto p-4 md:p-8 space-y-6">
+    
+    <header class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">Gestão de Estoque e Materiais</h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Olá, <span id="infoUsuario" class="font-semibold text-blue-600"></span> | 
+          Perfil: <span id="infoPerfil" class="uppercase text-xs font-bold bg-slate-100 px-2 py-0.5 rounded"></span>
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="carregarDadosNuvem()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg transition">Atualizar Dados</button>
+        <button onclick="exportarExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Baixar Excel (.xlsx)</button>
+        <button onclick="fazerLogout()" class="text-red-500 hover:bg-red-50 text-sm font-medium px-3 py-2 rounded-lg transition">Sair</button>
+      </div>
+    </header>
+
+    <!-- Alertas de Estoque Baixo -->
+    <div id="painelAlertas" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
+      <h3 class="text-sm font-bold text-red-800">Atenção: Materiais abaixo do estoque mínimo!</h3>
+      <ul id="listaAlertas" class="mt-1 text-sm text-red-700 list-disc list-inside"></ul>
+    </div>
+
+    <!-- Abas -->
+    <div class="flex space-x-1 bg-slate-200 p-1 rounded-lg">
+      <button onclick="mudarAba('abaUso')" id="tabUso" class="flex-1 py-2 text-sm font-bold rounded-md bg-white shadow text-blue-700">Registar Retirada (Saída)</button>
+      <button onclick="mudarAba('abaEstoque')" id="tabEstoque" class="flex-1 py-2 text-sm font-bold rounded-md text-slate-600">Estoque Atual (Entrada)</button>
+      <button onclick="mudarAba('abaAdmin')" id="tabAdmin" class="hidden flex-1 py-2 text-sm font-bold rounded-md text-purple-700">Aprovar Usuários (Mestre)</button>
+    </div>
+
+    <!-- ABA 1: REGISTRO DE USO -->
+    <div id="abaUso" class="space-y-6">
+      <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+        <h2 class="text-lg font-semibold mb-4">Lançar Utilização de Material</h2>
+        <form onsubmit="registrarRetirada(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Material do Estoque</label>
+            <select id="usoMaterial" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Setor de Destino / Local</label>
+            <select id="usoSetor" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Quantidade Utilizada</label>
+            <input type="number" step="any" min="0.01" id="usoQtd" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Quem Repôs / Retirou</label>
+            <input type="text" id="usoResp" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Data</label>
+            <input type="date" id="usoData" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2.5 rounded-lg">Confirmar Retirada</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b text-slate-600">
+              <th class="p-3">Data</th>
+              <th class="p-3">Setor / Local</th>
+              <th class="p-3">Material</th>
+              <th class="p-3 text-center">Qtd</th>
+              <th class="p-3">Responsável</th>
+              <th class="p-3 text-center">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaMovimentacoes" class="divide-y"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ABA 2: ESTOQUE -->
+    <div id="abaEstoque" class="hidden space-y-6">
+      <div id="boxNovoMaterial" class="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+        <h2 class="text-lg font-semibold mb-4">Cadastrar Material no Estoque da Unidade</h2>
+        <form onsubmit="cadastrarMaterial(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nome do Material</label>
+            <input type="text" id="estNome" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tipo (rolo, pacote...)</label>
+            <input type="text" id="estTipo" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Saldo Inicial</label>
+            <input type="number" step="any" id="estQtd" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Estoque Mínimo (Alerta)</label>
+            <input type="number" step="any" id="estMin" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+          </div>
+          <div class="md:col-span-4 flex justify-end">
+            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-medium px-6 py-2.5 rounded-lg">+ Adicionar Material</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b text-slate-600">
+              <th class="p-3">Material</th>
+              <th class="p-3">Unidade</th>
+              <th class="p-3 text-center">Saldo Real</th>
+              <th class="p-3 text-center">Mínimo</th>
+              <th class="p-3 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaEstoque" class="divide-y"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ABA 3: PAINEL MESTRE (APROVAÇÃO DE USUÁRIOS) -->
+    <div id="abaAdmin" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto p-6">
+      <h2 class="text-lg font-semibold mb-4">Gerenciar Usuários e Permissões</h2>
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="bg-slate-50 border-b text-slate-600">
+            <th class="p-3">Nome</th>
+            <th class="p-3">E-mail</th>
+            <th class="p-3">Perfil</th>
+            <th class="p-3">Status</th>
+            <th class="p-3 text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaUsuarios" class="divide-y"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script>
+    // =========================================================================
+    // COLE AQUI SUAS CHAVES DO SUPABASE (Mantenha as aspas simples)
+    // =========================================================================
+    const SUPABASE_URL = 'https://vyngargsuhhktrmdzprd.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_us_H7BKdErEiNw9nOmMHBw_L_mdQi1K';
+    // =========================================================================
+
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let usuarioAtual = null;
+    let perfilAtual = null;
+    let listaEmpresas = [], listaEstabelecimentos = [], listaSetores = [];
+    let listaEstoque = [], listaMovimentacoes = [];
+
+    // CARREGAR LISTAS PARA O CADASTRO EM CASCATA
+    async function carregarHierarquia() {
+      const { data: emp } = await db.from('empresas').select('*');
+      const { data: est } = await db.from('estabelecimentos').select('*');
+      const { data: set } = await db.from('setores').select('*');
+
+      listaEmpresas = emp || [];
+      listaEstabelecimentos = est || [];
+      listaSetores = set || [];
+
+      const selEmp = document.getElementById('cadEmpresa');
+      selEmp.innerHTML = '<option value="">Selecione a Empresa...</option>' + 
+        listaEmpresas.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+    }
+
+    function filtrarEstabelecimentos() {
+      const empId = document.getElementById('cadEmpresa').value;
+      const filtrados = listaEstabelecimentos.filter(e => e.empresa_id === empId);
+      document.getElementById('cadEstabelecimento').innerHTML = '<option value="">Selecione a Unidade...</option>' + 
+        filtrados.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+      document.getElementById('cadSetor').innerHTML = '';
+    }
+
+    function filtrarSetores() {
+      const estId = document.getElementById('cadEstabelecimento').value;
+      const filtrados = listaSetores.filter(s => s.estabelecimento_id === estId);
+      document.getElementById('cadSetor').innerHTML = '<option value="">Selecione o Setor...</option>' + 
+        filtrados.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+    }
+
+    function alternarTelaAuth(mostrarCadastro) {
+      document.getElementById('telaLogin').classList.toggle('hidden', mostrarCadastro);
+      document.getElementById('telaCadastro').classList.toggle('hidden', !mostrarCadastro);
+      if (mostrarCadastro) carregarHierarquia();
+    }
+
+    // CADASTRO NA NUVEM
+    async function fazerCadastro(e) {
+      e.preventDefault();
+      const nome = document.getElementById('cadNome').value.trim();
+      const email = document.getElementById('cadEmail').value.trim();
+      const senha = document.getElementById('cadSenha').value;
+      const setorId = document.getElementById('cadSetor').value;
+
+      const { data, error } = await db.auth.signUp({ email, password: senha });
+      if (error) return alert('Erro ao cadastrar: ' + error.message);
+
+      if (data.user) {
+        await db.from('usuarios_perfil').insert([{
+          id: data.user.id,
+          nome: nome,
+          email: email,
+          setor_id: setorId,
+          perfil: 'comum',
+          status: 'pendente'
+        }]);
+        alert('Solicitação enviada! Peça ao Usuário Mestre para liberar seu acesso.');
+        alternarTelaAuth(false);
+      }
+    }
+
+    // LOGIN NA NUVEM
+    async function fazerLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const senha = document.getElementById('loginSenha').value;
+
+      const { data, error } = await db.auth.signInWithPassword({ email, password: senha });
+      if (error) return alert('Falha no login: ' + error.message);
+
+      verificarUsuario();
+    }
+
+    async function verificarUsuario() {
+      const { data: { user } } = await db.auth.getUser();
+      if (!user) return;
+
+      const { data: perfil } = await db.from('usuarios_perfil').select('*, setores(id, nome, estabelecimento_id)').eq('id', user.id).single();
+
+      if (!perfil || perfil.status !== 'aprovado') {
+        await db.auth.signOut();
+        return alert('Seu cadastro está PENDENTE de aprovação pelo Usuário Mestre.');
+      }
+
+      usuarioAtual = user;
+      perfilAtual = perfil;
+
+      document.getElementById('telaLogin').classList.add('hidden');
+      document.getElementById('telaCadastro').classList.add('hidden');
+      document.getElementById('telaApp').classList.remove('hidden');
+
+      document.getElementById('infoUsuario').textContent = perfil.nome;
+      document.getElementById('infoPerfil').textContent = perfil.perfil;
+      document.getElementById('usoResp').value = perfil.nome;
+
+      // Se for Mestre, libera a aba de aprovação de usuários
+      if (perfil.perfil !== 'comum') {
+        document.getElementById('tabAdmin').classList.remove('hidden');
+      }
+
+      await carregarHierarquia();
+      carregarDadosNuvem();
+    }
+
+    async function fazerLogout() {
+      await db.auth.signOut();
+      location.reload();
+    }
+
+    // CARREGAR ESTOQUE E MOVIMENTAÇÕES DA NUVEM
+    async function carregarDadosNuvem() {
+      const estId = perfilAtual.setores.estabelecimento_id;
+
+      // Carrega Setores da mesma unidade para o formulário
+      const setoresUnidade = listaSetores.filter(s => s.estabelecimento_id === estId);
+      document.getElementById('usoSetor').innerHTML = setoresUnidade.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+
+      // Carrega Estoque da unidade
+      const { data: est } = await db.from('estoque_materiais').select('*').eq('estabelecimento_id', estId).order('nome');
+      listaEstoque = est || [];
+
+      // Carrega Movimentações
+      const { data: mov } = await db.from('movimentacoes').select('*, estoque_materiais(nome, tipo_unidade), setores(nome)').order('criado_em', { ascending: false });
+      listaMovimentacoes = mov || [];
+
+      renderizarInterface();
+    }
+
+    // CADASTRAR MATERIAL NO ESTOQUE
+    async function cadastrarMaterial(e) {
+      e.preventDefault();
+      const estId = perfilAtual.setores.estabelecimento_id;
+      const { error } = await db.from('estoque_materiais').insert([{
+        estabelecimento_id: estId,
+        nome: document.getElementById('estNome').value.trim(),
+        tipo_unidade: document.getElementById('estTipo').value.trim(),
+        quantidade_atual: parseFloat(document.getElementById('estQtd').value),
+        estoque_minimo: parseFloat(document.getElementById('estMin').value)
+      }]);
+
+      if (error) return alert('Erro ao salvar material: ' + error.message);
+      e.target.reset();
+      carregarDadosNuvem();
+    }
+
+    // REGISTRAR RETIRADA (BAIXA AUTOMÁTICA VIA TRIGGER NO BANCO)
+    async function registrarRetirada(e) {
+      e.preventDefault();
+      const { error } = await db.from('movimentacoes').insert([{
+        material_id: document.getElementById('usoMaterial').value,
+        setor_destino_id: document.getElementById('usoSetor').value,
+        criado_por: usuarioAtual.id,
+        responsavel_nome: document.getElementById('usoResp').value.trim(),
+        quantidade: parseFloat(document.getElementById('usoQtd').value),
+        data_utilizacao: document.getElementById('usoData').value
+      }]);
+
+      if (error) return alert('Erro ao registrar: ' + error.message);
+      document.getElementById('usoQtd').value = '';
+      carregarDadosNuvem();
+    }
+
+    // EXCLUIR MOVIMENTAÇÃO (COM ESTORNO AUTOMÁTICO NO ESTOQUE)
+    async function excluirMovimentacao(id) {
+      if (!confirm('Deseja excluir este lançamento? O saldo voltará automaticamente para o estoque.')) return;
+      const { error } = await db.from('movimentacoes').delete().eq('id', id);
+      if (error) return alert('Sem permissão para excluir este registro.');
+      carregarDadosNuvem();
+    }
+
+    // RENDERIZAR TABELAS E REGRAS DE PERMISSÃO
+    function renderizarInterface() {
+      // Combo de Materiais
+      document.getElementById('usoMaterial').innerHTML = listaEstoque.map(m => 
+        `<option value="${m.id}">${m.nome} (${m.tipo_unidade}) - Saldo: ${m.quantidade_atual}</option>`
+      ).join('');
+
+      // Tabela de Estoque e Alertas
+      const tbEst = document.getElementById('tabelaEstoque');
+      tbEst.innerHTML = '';
+      let alertas = [];
+
+      listaEstoque.forEach(m => {
+        const baixo = Number(m.quantidade_atual) <= Number(m.estoque_minimo);
+        if (baixo) alertas.push(`${m.nome}: Saldo ${m.quantidade_atual} ${m.tipo_unidade} (Mínimo: ${m.estoque_minimo})`);
+
+        tbEst.innerHTML += `
+          <tr>
+            <td class="p-3 font-medium">${m.nome}</td>
+            <td class="p-3 text-slate-500">${m.tipo_unidade}</td>
+            <td class="p-3 text-center font-bold ${baixo ? 'text-red-600' : 'text-blue-600'}">${m.quantidade_atual}</td>
+            <td class="p-3 text-center text-slate-500">${m.estoque_minimo}</td>
+            <td class="p-3 text-center">${baixo ? '<span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">Baixo</span>' : '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">Normal</span>'}</td>
+          </tr>
+        `;
+      });
+
+      const painelAlertas = document.getElementById('painelAlertas');
+      if (alertas.length > 0) {
+        painelAlertas.classList.remove('hidden');
+        document.getElementById('listaAlertas').innerHTML = alertas.map(a => `<li>${a}</li>`).join('');
+      } else {
+        painelAlertas.classList.add('hidden');
+      }
+
+      // Tabela de Movimentações (Apenas Criador ou Mestre vê o botão Excluir)
+      const tbMov = document.getElementById('tabelaMovimentacoes');
+      tbMov.innerHTML = '';
+      const ehMestre = perfilAtual.perfil !== 'comum';
+
+      listaMovimentacoes.forEach(mov => {
+        const ehCriador = mov.criado_por === usuarioAtual.id;
+        const podeAlterar = ehCriador || ehMestre;
+
+        tbMov.innerHTML += `
+          <tr>
+            <td class="p-3 text-slate-500">${mov.data_utilizacao}</td>
+            <td class="p-3 font-medium">${mov.setores?.nome || '-'}</td>
+            <td class="p-3">${mov.estoque_materiais?.nome || '-'}</td>
+            <td class="p-3 text-center font-bold text-red-600">-${mov.quantidade}</td>
+            <td class="p-3 text-slate-600">${mov.responsavel_nome}</td>
+            <td class="p-3 text-center">
+              ${podeAlterar ? `<button onclick="excluirMovimentacao('${mov.id}')" class="text-red-500 hover:underline text-xs font-bold">Excluir</button>` : '<span class="text-xs text-slate-400">Somente leitura</span>'}
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    // PAINEL DO USUÁRIO MESTRE
+    async function carregarUsuariosAdmin() {
+      const { data } = await db.from('usuarios_perfil').select('*').order('criado_em', { ascending: false });
+      const tb = document.getElementById('tabelaUsuarios');
+      tb.innerHTML = (data || []).map(u => `
+        <tr>
+          <td class="p-3 font-medium">${u.nome}</td>
+          <td class="p-3 text-slate-500">${u.email}</td>
+          <td class="p-3 uppercase text-xs font-bold">${u.perfil}</td>
+          <td class="p-3">${u.status === 'aprovado' ? '<span class="text-emerald-600 font-bold">Aprovado</span>' : '<span class="text-amber-600 font-bold">Pendente</span>'}</td>
+          <td class="p-3 text-center space-x-2">
+            ${u.status !== 'aprovado' ? `<button onclick="aprovarUsuario('${u.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs">Aprovar</button>` : ''}
+            ${u.perfil === 'comum' ? `<button onclick="tornarMestre('${u.id}')" class="bg-purple-600 text-white px-2 py-1 rounded text-xs">Tornar Mestre</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function aprovarUsuario(id) {
+      await db.from('usuarios_perfil').update({ status: 'aprovado' }).eq('id', id);
+      carregarUsuariosAdmin();
+    }
+
+    async function tornarMestre(id) {
+      await db.from('usuarios_perfil').update({ perfil: 'mestre_unidade' }).eq('id', id);
+      carregarUsuariosAdmin();
+    }
+
+    function mudarAba(aba) {
+      ['abaUso', 'abaEstoque', 'abaAdmin'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById(aba).classList.remove('hidden');
+      if (aba === 'abaAdmin') carregarUsuariosAdmin();
+    }
+
+    function exportarExcel() {
+      const wb = XLSX.utils.book_new();
+      const wsEst = XLSX.utils.json_to_sheet(listaEstoque.map(m => ({ Material: m.nome, Unidade: m.tipo_unidade, Saldo_Atual: m.quantidade_atual, Minimo: m.estoque_minimo })));
+      const wsMov = XLSX.utils.json_to_sheet(listaMovimentacoes.map(m => ({ Data: m.data_utilizacao, Setor: m.setores?.nome, Material: m.estoque_materiais?.nome, Quantidade: m.quantidade, Responsavel: m.responsavel_nome })));
+      XLSX.utils.book_append_sheet(wb, wsEst, 'Estoque_Real');
+      XLSX.utils.book_append_sheet(wb, wsMov, 'Movimentacoes');
+      XLSX.writeFile(wb, `SGMS_Nuvem_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    window.onload = () => {
+      document.getElementById('usoData').value = new Date().toISOString().split('T')[0];
+      verificarUsuario();
+    };
+  </script>
+</body>
+</html>
