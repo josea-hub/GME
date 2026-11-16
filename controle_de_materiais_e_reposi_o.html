@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Materiais e Reposição</title>
+  
+  <!-- Tailwind CSS para estilização moderna e responsiva -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS para gerar planilhas Excel (.xlsx) diretamente no navegador -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen p-3 sm:p-6 md:p-8">
+
+  <div class="max-w-5xl mx-auto space-y-6">
+
+    <!-- Card de Cabeçalho / Título e Instruções Simples -->
+    <header class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full mb-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Pronto para uso web • Salva automaticamente
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Gestão de Materiais e Reposição</h1>
+          <p class="text-sm text-slate-500 mt-1">Preencha o local, adicione os itens e exporte sua planilha Excel com um clique.</p>
+        </div>
+
+        <!-- Botões de Ação Rápida -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnExportarExcel" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition hover:shadow duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Baixar Excel (.xlsx)
+          </button>
+          <button id="btnLimparTudo" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 text-xs font-medium px-3 py-2.5 rounded-xl border border-slate-200 transition duration-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            Limpar Dados
+          </button>
+        </div>
+      </div>
+
+      <!-- Campo Exato de Local conforme solicitado -->
+      <div class="mt-5 bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <label for="inputLocal" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+          Local: ambiente onde será utilizado
+        </label>
+        <div class="relative">
+          <input 
+            type="text" 
+            id="inputLocal" 
+            placeholder="Exemplo: Copa 2º Andar, Almoxarifado Central, Banheiro Térreo..."
+            class="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          >
+        </div>
+      </div>
+    </header>
+
+    <!-- Formulário de Registro -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+          Novo Registro de Material
+        </h2>
+        <span class="text-xs text-slate-400">Preencha os campos abaixo e clique em Adicionar</span>
+      </div>
+
+      <form id="formRegistro" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          
+          <!-- Data da utilização -->
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Data da ut</label>
+            <input 
+              type="date" 
+              id="inputData" 
+              required
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+
+          <!-- Hora -->
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Hora</label>
+            <input 
+              type="time" 
+              id="inputHora" 
+              required
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+
+          <!-- Quem repôs -->
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Quem repôs</label>
+            <input 
+              type="text" 
+              id="inputQuem" 
+              placeholder="Ex: Carlos M." 
+              required
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+
+          <!-- Qual o item -->
+          <div class="sm:col-span-2 md:col-span-1 lg:col-span-1">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Qual o item</label>
+            <input 
+              type="text" 
+              id="inputItem" 
+              placeholder="Ex: Papel toalha" 
+              required
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+
+          <!-- Quantidade -->
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Quantidade</label>
+            <input 
+              type="number" 
+              id="inputQuantidade" 
+              step="any"
+              min="0.1" 
+              placeholder="Ex: 5" 
+              required
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+
+          <!-- Tipo (rolo, pacote, unidade, etc) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Tipo / Unidade</label>
+            <input 
+              type="text" 
+              list="opcoesTipo"
+              id="inputTipo" 
+              placeholder="rolo, pacote..." 
+              required
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            <datalist id="opcoesTipo">
+              <option value="rolo">
+              <option value="pacote">
+              <option value="unidade">
+              <option value="caixa">
+              <option value="fardo">
+              <option value="litro">
+            </datalist>
+          </div>
+
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button 
+            type="submit" 
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-6 py-2.5 rounded-xl shadow-sm transition hover:shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            Adicionar à Lista
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Tabela de Registros -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <h3 class="font-semibold text-slate-800 text-sm sm:text-base">Registros Cadastrados</h3>
+          <span id="contadorItens" class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full font-medium">0 itens</span>
+        </div>
+        <span class="text-xs text-slate-400 italic">Essas informações irão para o arquivo Excel</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs sm:text-sm text-slate-600">
+          <thead class="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+            <tr>
+              <th scope="col" class="py-3 px-4">Data da ut</th>
+              <th scope="col" class="py-3 px-4">Hora</th>
+              <th scope="col" class="py-3 px-4">Quem repôs</th>
+              <th scope="col" class="py-3 px-4">Quantidade</th>
+              <th scope="col" class="py-3 px-4">Qual o item</th>
+              <th scope="col" class="py-3 px-4">Que tipo</th>
+              <th scope="col" class="py-3 px-4 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabela" class="divide-y divide-slate-100">
+            <!-- Linhas inseridas dinamicamente via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Estado vazio quando não houver itens -->
+      <div id="estadoVazio" class="py-12 text-center text-slate-400">
+        <svg class="mx-auto h-10 w-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+        <p class="text-sm">Nenhum registro adicionado ainda.</p>
+        <p class="text-xs text-slate-400 mt-0.5">Preencha o formulário acima para começar.</p>
+      </div>
+    </section>
+
+    <!-- Modal/Caixa de Mensagens Customizada (Substituto moderno para alert) -->
+    <div id="notificacaoToast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+      <div id="toastConteudo" class="bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2">
+        <span id="toastIcone">✓</span>
+        <span id="toastTexto">Mensagem</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Inicialização do estado
+    const STORAGE_KEY_REGISTROS = 'sgms_registros_v1';
+    const STORAGE_KEY_LOCAL = 'sgms_local_v1';
+
+    let registros = [];
+
+    // Elementos DOM
+    const inputLocal = document.getElementById('inputLocal');
+    const formRegistro = document.getElementById('formRegistro');
+    const inputData = document.getElementById('inputData');
+    const inputHora = document.getElementById('inputHora');
+    const inputQuem = document.getElementById('inputQuem');
+    const inputItem = document.getElementById('inputItem');
+    const inputQuantidade = document.getElementById('inputQuantidade');
+    const inputTipo = document.getElementById('inputTipo');
+    const corpoTabela = document.getElementById('corpoTabela');
+    const estadoVazio = document.getElementById('estadoVazio');
+    const contadorItens = document.getElementById('contadorItens');
+    const btnExportarExcel = document.getElementById('btnExportarExcel');
+    const btnLimparTudo = document.getElementById('btnLimparTudo');
+
+    // Preenche automaticamente data e hora com o momento atual
+    function preencherDataHoraPadrao() {
+      const agora = new Date();
+      const ano = agora.getFullYear();
+      const mes = String(agora.getMonth() + 1).padStart(2, '0');
+      const dia = String(agora.getDate()).padStart(2, '0');
+      inputData.value = `${ano}-${mes}-${dia}`;
+
+      const horas = String(agora.getHours()).padStart(2, '0');
+      const minutos = String(agora.getMinutes()).padStart(2, '0');
+      inputHora.value = `${horas}:${minutos}`;
+    }
+
+    // Exibe notificação suave na tela
+    function mostrarToast(mensagem, tipo = 'sucesso') {
+      const toast = document.getElementById('notificacaoToast');
+      const toastTexto = document.getElementById('toastTexto');
+      const toastConteudo = document.getElementById('toastConteudo');
+      const toastIcone = document.getElementById('toastIcone');
+
+      toastTexto.textContent = mensagem;
+
+      if (tipo === 'sucesso') {
+        toastConteudo.className = 'bg-emerald-900 text-emerald-100 border border-emerald-700 text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2';
+        toastIcone.textContent = '✓';
+      } else if (tipo === 'aviso') {
+        toastConteudo.className = 'bg-amber-900 text-amber-100 border border-amber-700 text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2';
+        toastIcone.textContent = '⚠';
+      } else {
+        toastConteudo.className = 'bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2';
+        toastIcone.textContent = 'ℹ';
+      }
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3500);
+    }
+
+    // Formata a data (YYYY-MM-DD para DD/MM/AAAA) para visualização amigável
+    function formatarDataVisual(dataIso) {
+      if (!dataIso) return '';
+      const partes = dataIso.split('-');
+      if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+      }
+      return dataIso;
+    }
+
+    // Carregar dados salvos no navegador
+    function carregarDadosSalvos() {
+      try {
+        const localSalvo = localStorage.getItem(STORAGE_KEY_LOCAL);
+        if (localSalvo) {
+          inputLocal.value = localSalvo;
+        }
+
+        const registrosSalvos = localStorage.getItem(STORAGE_KEY_REGISTROS);
+        if (registrosSalvos) {
+          registros = JSON.parse(registrosSalvos);
+        }
+      } catch (err) {
+        console.error('Erro ao ler localStorage', err);
+        registros = [];
+      }
+      atualizarTabela();
+    }
+
+    // Salvar no navegador
+    function persistirDados() {
+      try {
+        localStorage.setItem(STORAGE_KEY_LOCAL, inputLocal.value);
+        localStorage.setItem(STORAGE_KEY_REGISTROS, JSON.stringify(registros));
+      } catch (err) {
+        console.error('Erro ao gravar no localStorage', err);
+      }
+    }
+
+    // Salva o local sempre que o usuário digita
+    inputLocal.addEventListener('input', () => {
+      persistirDados();
+    });
+
+    function atualizarTabela() {
+      corpoTabela.innerHTML = '';
+      contadorItens.textContent = `${registros.length} item${registros.length === 1 ? '' : 's'}`;
+
+      if (registros.length === 0) {
+        estadoVazio.classList.remove('hidden');
+        return;
+      }
+
+      estadoVazio.classList.add('hidden');
+
+      registros.forEach((reg, index) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-medium text-slate-800">${formatarDataVisual(reg.data)}</td>
+          <td class="py-3 px-4 text-slate-600">${reg.hora}</td>
+          <td class="py-3 px-4 text-slate-700">${escapeHtml(reg.quem)}</td>
+          <td class="py-3 px-4 font-semibold text-slate-900">${reg.quantidade}</td>
+          <td class="py-3 px-4 text-slate-800">${escapeHtml(reg.item)}</td>
+          <td class="py-3 px-4 text-slate-600">
+            <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs">
+              ${escapeHtml(reg.tipo)}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <button 
+              type="button" 
+              onclick="removerRegistro(${index})" 
+              title="Remover linha"
+              class="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </td>
+        `;
+        corpoTabela.appendChild(tr);
+      });
+    }
+
+    // Previne injeção de HTML
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    formRegistro.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const novoItem = {
+        data: inputData.value,
+        hora: inputHora.value,
+        quem: inputQuem.value.trim(),
+        item: inputItem.value.trim(),
+        quantidade: Number(inputQuantidade.value),
+        tipo: inputTipo.value.trim()
+      };
+
+      registros.push(novoItem);
+      persistirDados();
+      atualizarTabela();
+
+      // Limpar campos de entrada de item e quantidade mantendo o nome de quem repôs para agilidade
+      inputItem.value = '';
+      inputQuantidade.value = '';
+      inputTipo.value = '';
+      inputItem.focus();
+
+      mostrarToast('Item adicionado com sucesso!');
+    });
+
+    window.removerRegistro = function(index) {
+      registros.splice(index, 1);
+      persistirDados();
+      atualizarTabela();
+      mostrarToast('Registro removido.', 'aviso');
+    };
+
+    btnLimparTudo.addEventListener('click', () => {
+      if (registros.length === 0 && !inputLocal.value) {
+        mostrarToast('Não há registros para limpar.', 'aviso');
+        return;
+      }
+      
+      // Limpeza segura sem alert()/confirm()
+      const confirmacao = window.confirm ? window.confirm('Deseja realmente apagar todos os registros da lista?') : true;
+      if (confirmacao) {
+        registros = [];
+        persistirDados();
+        atualizarTabela();
+        mostrarToast('Todos os registros foram apagados.', 'aviso');
+      }
+    });
+
+    btnExportarExcel.addEventListener('click', () => {
+      if (registros.length === 0) {
+        mostrarToast('Adicione pelo menos um registro antes de exportar!', 'aviso');
+        return;
+      }
+
+      if (typeof XLSX === 'undefined') {
+        mostrarToast('A biblioteca SheetJS ainda está carregando. Tente novamente em instantes.', 'aviso');
+        return;
+      }
+
+      const nomeLocal = inputLocal.value.trim() || 'Ambiente Geral';
+
+      // 1. Linha superior com o cabeçalho do Local exatamente como na imagem
+      const linhaCabecalhoLocal = [
+        'Local:', 
+        nomeLocal, 
+        '', 
+        '', 
+        '', 
+        ''
+      ];
+
+      // 2. Colunas exatas da tabela do usuário
+      const colunasTabela = [
+        'Data da ut',
+        'Hora',
+        'Quem repôs',
+        'quantidade',
+        'qual o iten',
+        'que tipo, rolo, pacote, unidade'
+      ];
+
+      // 3. Montar as linhas de dados
+      const linhasDados = registros.map(item => [
+        formatarDataVisual(item.data),
+        item.hora,
+        item.quem,
+        item.quantidade,
+        item.item,
+        item.tipo
+      ]);
+
+      // Unir em uma matriz de dados (Array of Arrays)
+      const matrizPlanilha = [
+        linhaCabecalhoLocal,
+        colunasTabela,
+        ...linhasDados
+      ];
+
+      // Criar a planilha e o livro de trabalho
+      const worksheet = XLSX.utils.aoa_to_sheet(matrizPlanilha);
+
+      // Definir larguras ideais para as colunas
+      worksheet['!cols'] = [
+        { wch: 14 }, // Data da ut
+        { wch: 10 }, // Hora
+        { wch: 22 }, // Quem repôs
+        { wch: 14 }, // Quantidade
+        { wch: 28 }, // Qual o item
+        { wch: 28 }  // Tipo
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Reposições');
+
+      // Nome do arquivo seguro
+      const nomeLimpo = nomeLocal.toLowerCase().replace(/[^a-z0-9]/gi, '_');
+      const nomeArquivo = `reposicao_materiais_${nomeLimpo}.xlsx`;
+
+      // Fazer download do arquivo .xlsx
+      XLSX.writeFile(workbook, nomeArquivo);
+      mostrarToast('Planilha Excel baixada com sucesso!');
+    });
+
+    // Iniciar página
+    preencherDataHoraPadrao();
+    carregarDadosSalvos();
+  </script>
+</body>
+</html>
